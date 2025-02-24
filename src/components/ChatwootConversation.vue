@@ -1,5 +1,5 @@
 <script lang="ts">
-import { ref, onMounted, defineComponent, nextTick } from "vue";
+import { ref, onMounted, defineComponent, nextTick, watch } from "vue";
 import chatwootService from "../services/chatwootService";
 
 export default defineComponent({
@@ -12,16 +12,6 @@ export default defineComponent({
     const isLoading = ref(false);
     const isSending = ref(false);
     const messagesAreaRef = ref<HTMLElement | null>(null);
-
-    const scrollToBottom = () => {
-      nextTick(() => {
-        if (messagesAreaRef.value) {
-          // Ensure the element is fully rendered before scrolling
-          messagesAreaRef.value.scrollTop = messagesAreaRef.value.scrollHeight;
-          console.log("scrolled to bottom", messagesAreaRef.value.scrollHeight);
-        }
-      });
-    };
 
     const fetchConversations = async () => {
       try {
@@ -41,9 +31,6 @@ export default defineComponent({
           conversation.id
         );
         conversationMessages.value = response.data.payload;
-        // Wait for DOM update and then scroll
-        await nextTick();
-        scrollToBottom();
       } catch (error) {
         console.error("Error fetching conversation messages:", error);
       } finally {
@@ -81,6 +68,19 @@ export default defineComponent({
       return new Date(timestamp).toLocaleDateString();
     };
 
+    const scrollToBottom = () => {
+      nextTick(() => {
+        if (messagesAreaRef.value) {
+          messagesAreaRef.value.scrollTop = messagesAreaRef.value.scrollHeight;
+        }
+      });
+    };
+    watch(conversationMessages, () => {
+      nextTick(() => {
+        scrollToBottom();
+      });
+    });
+
     onMounted(fetchConversations);
 
     return {
@@ -112,7 +112,9 @@ export default defineComponent({
           @click="selectConversation(conversation)"
         >
           <div class="conversation-preview">
-            <span class="contact-name">Contact #{{ conversation.id }}</span>
+            <span class="contact-name">{{
+              conversation.meta.sender.name
+            }}</span>
             <p class="last-message">
               {{ conversation.messages[0]?.content || "No messages" }}
             </p>
@@ -126,7 +128,9 @@ export default defineComponent({
 
     <div class="chat-area" v-if="selectedConversation">
       <div class="chat-header-area">
-        <span class="contact-name">Contact #{{ selectedConversation.id }}</span>
+        <span class="contact-name">{{
+          selectedConversation.meta.sender.name
+        }}</span>
         <span class="status" :class="selectedConversation.status">{{
           selectedConversation.status
         }}</span>
